@@ -1,6 +1,9 @@
 package com.qichen.gravtech;
 
+import com.qichen.gravtech.block.ModBlockRegister;
 import com.qichen.gravtech.datagen.ModDataGenerator;
+import com.qichen.gravtech.item.ModCreativeTab;
+import com.qichen.gravtech.item.ModItemRegister;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -38,7 +41,7 @@ public class GravTech {
     // Define mod id in a common place for everything to reference
     public static final String MODID = "gravtech";
     // Directly reference a slf4j logger
-    public static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger PublicLogger = LogUtils.getLogger();
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
@@ -51,7 +54,15 @@ public class GravTech {
         // Note that this is necessary if and only if we want *this* class (GravTech) to respond directly to events.
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
         NeoForge.EVENT_BUS.register(this);
+        // Register items first
+        ModItemRegister.register(modEventBus);
+        ModBlockRegister.register(modEventBus);
 
+        // Register menu types
+        //ModMenuType.register(modEventBus);
+
+        // Then register creative tab
+        ModCreativeTab.register(modEventBus);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

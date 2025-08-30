@@ -1,6 +1,7 @@
 package com.qichen.gravtech.datagen;
 
 import com.qichen.gravtech.GravTech;
+import com.qichen.gravtech.item.ModItemRegister;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.model.generators.ItemModelBuilder;
@@ -15,8 +16,7 @@ public class ModItemModelProvider extends ItemModelProvider {
 
     @Override
     protected void registerModels() {
-
-
+        handheldItem(ModItemRegister.GRAVITY_ANCHOR_ITEM);
     }
     private ItemModelBuilder handheldItem(DeferredItem<?> item) {
         return withExistingParent(item.getId().getPath(),

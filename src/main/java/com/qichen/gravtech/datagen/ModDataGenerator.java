@@ -23,8 +23,11 @@ public class ModDataGenerator {
 
         ExistingFileHelper helper = event.getExistingFileHelper();
         gen.addProvider(event.includeClient(),new ModItemModelProvider(output,helper));
+        gen.addProvider(event.includeClient(),new ModBlockModelProvider(output,helper));
         gen.addProvider(event.includeClient(),new LangProvider(output,"en_us"));
         gen.addProvider(event.includeClient(),new ChineseLangProvider(output));
+        gen.addProvider(event.includeClient(),new LootTableProvider(output, Collections.emptySet(),
+                List.of(new LootTableProvider.SubProviderEntry(ModBlockLootTableProvider::new, LootContextParamSets.BLOCK)), lookupProvider));
         gen.addProvider(event.includeClient(),new ModRecipeProvider(output,lookupProvider));
     }
 }
