@@ -20,6 +20,13 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Arrow;
+import net.minecraft.world.entity.projectile.Snowball;
+import net.minecraft.world.entity.projectile.ThrownEgg;
+import net.minecraft.world.entity.projectile.ThrownEnderpearl;
+import net.minecraft.world.entity.projectile.ThrownPotion;
+import net.minecraft.world.entity.projectile.ThrownTrident;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -111,6 +118,9 @@ public class gravityAnchorEntity extends BlockEntity {
                 applyGravityEffect(livingEntity, be.getMode(), be);
             } else if(entity instanceof ItemEntity itemEntity) {
                 applyItemGravityEffect(itemEntity, be.getMode(), be);
+            } else if(entity instanceof Projectile projectile) {
+                // 处理飞行物实体
+                applyProjectileGravityEffect(projectile, be.getMode(), be);
             }
         }
         
@@ -239,6 +249,137 @@ public class gravityAnchorEntity extends BlockEntity {
                     motion.x + direction.x * 0.05 * strength,
                     motion.y + direction.y * 0.05 * strength,
                     motion.z + direction.z * 0.05 * strength
+                );
+                break;
+        }
+    }
+
+    // 应用飞行物重力效果
+    private static void applyProjectileGravityEffect(Projectile projectile, GravityMode mode, gravityAnchorEntity anchor) {
+        Vec3 motion = projectile.getDeltaMovement();
+        Vec3 pos = projectile.position();
+        Vec3 anchorPos = Vec3.atCenterOf(anchor.getBlockPos());
+        
+        // 计算距离衰减
+        double distance = pos.distanceTo(anchorPos);
+        double maxDistance = anchor.getRange() / 2.0;
+        double strength = Math.max(0, 1.0 - (distance / maxDistance));
+        
+        // 如果强度太小，不应用效果
+        if(strength < 0.1) return;
+        
+        // 为飞行物添加视觉反馈 - 发光效果
+        if(projectile.level() instanceof ServerLevel serverLevel) {
+            // 生成飞行物轨迹粒子效果
+            spawnProjectileTrailParticles(serverLevel, pos, mode, strength);
+        }
+        
+        switch (mode) {
+            case LOW_GRAVITY:
+                applyLowGravityToProjectile(projectile, motion, anchorPos, pos, strength);
+                break;
+            case HIGH_GRAVITY:
+                applyHighGravityToProjectile(projectile, motion, anchorPos, pos, strength);
+                break;
+        }
+    }
+
+    // 对飞行物应用低重力效果
+    private static void applyLowGravityToProjectile(Projectile projectile, Vec3 motion, Vec3 anchorPos, Vec3 pos, double strength) {
+        Vec3 newMotion = motion;
+        
+        // 减少重力影响，让飞行物飞得更远更高
+        if(motion.y < 0) {
+            newMotion = newMotion.multiply(1.0, LOW_GRAVITY_MULTIPLIER, 1.0);
+        }
+        
+        // 根据飞行物类型应用不同效果
+        if(projectile instanceof Arrow arrow) {
+            // 箭矢：减少重力，增加飞行距离
+            newMotion = newMotion.multiply(1.0 + strength * 0.2, 1.0 + strength * 0.3, 1.0 + strength * 0.2);
+        } else if(projectile instanceof Snowball snowball) {
+            // 雪球：增加投掷距离，减少下降速度
+            newMotion = newMotion.multiply(1.0 + strength * 0.3, 1.0 + strength * 0.4, 1.0 + strength * 0.3);
+        } else if(projectile instanceof ThrownEgg egg) {
+            // 鸡蛋：类似雪球效果
+            newMotion = newMotion.multiply(1.0 + strength * 0.25, 1.0 + strength * 0.35, 1.0 + strength * 0.25);
+        } else if(projectile instanceof ThrownEnderpearl enderpearl) {
+            // 末影珍珠：减少重力影响，增加投掷距离
+            newMotion = newMotion.multiply(1.0 + strength * 0.15, 1.0 + strength * 0.25, 1.0 + strength * 0.15);
+        } else if(projectile instanceof ThrownPotion potion) {
+            // 药水：增加投掷距离
+            newMotion = newMotion.multiply(1.0 + strength * 0.2, 1.0 + strength * 0.3, 1.0 + strength * 0.2);
+        } else if(projectile instanceof ThrownTrident trident) {
+            // 三叉戟：减少重力影响
+            newMotion = newMotion.multiply(1.0 + strength * 0.1, 1.0 + strength * 0.2, 1.0 + strength * 0.1);
+        }
+        
+        projectile.setDeltaMovement(newMotion);
+    }
+
+    // 对飞行物应用高重力效果
+    private static void applyHighGravityToProjectile(Projectile projectile, Vec3 motion, Vec3 anchorPos, Vec3 pos, double strength) {
+        Vec3 newMotion = motion;
+        
+        // 增加重力影响，让飞行物更快下降
+        if(motion.y < 0) {
+            newMotion = newMotion.multiply(1.0, HIGH_GRAVITY_MULTIPLIER, 1.0);
+        }
+        
+        // 向锚点中心吸引
+        Vec3 direction = anchorPos.subtract(pos).normalize();
+        double attractionForce = 0.08 * strength;
+        
+        newMotion = newMotion.add(
+            direction.x * attractionForce,
+            direction.y * attractionForce,
+            direction.z * attractionForce
+        );
+        
+        // 根据飞行物类型应用不同效果
+        if(projectile instanceof Arrow arrow) {
+            // 箭矢：增加重力，减少飞行距离，向锚点弯曲
+            newMotion = newMotion.multiply(1.0 - strength * 0.1, 1.0 - strength * 0.2, 1.0 - strength * 0.1);
+        } else if(projectile instanceof Snowball snowball) {
+            // 雪球：快速下降，向锚点吸引
+            newMotion = newMotion.multiply(1.0 - strength * 0.15, 1.0 - strength * 0.25, 1.0 - strength * 0.15);
+        } else if(projectile instanceof ThrownEgg egg) {
+            // 鸡蛋：类似雪球效果
+            newMotion = newMotion.multiply(1.0 - strength * 0.12, 1.0 - strength * 0.22, 1.0 - strength * 0.12);
+        } else if(projectile instanceof ThrownEnderpearl enderpearl) {
+            // 末影珍珠：增加重力，向锚点吸引
+            newMotion = newMotion.multiply(1.0 - strength * 0.08, 1.0 - strength * 0.15, 1.0 - strength * 0.08);
+        } else if(projectile instanceof ThrownPotion potion) {
+            // 药水：快速下降
+            newMotion = newMotion.multiply(1.0 - strength * 0.1, 1.0 - strength * 0.2, 1.0 - strength * 0.1);
+        } else if(projectile instanceof ThrownTrident trident) {
+            // 三叉戟：增加重力影响
+            newMotion = newMotion.multiply(1.0 - strength * 0.05, 1.0 - strength * 0.1, 1.0 - strength * 0.05);
+        }
+        
+        projectile.setDeltaMovement(newMotion);
+    }
+
+    // 生成飞行物轨迹粒子效果
+    private static void spawnProjectileTrailParticles(ServerLevel serverLevel, Vec3 pos, GravityMode mode, double strength) {
+        // 只在强度较高时生成粒子，避免过多粒子影响性能
+        if(strength < 0.3) return;
+        
+        switch (mode) {
+            case LOW_GRAVITY:
+                // 低重力：生成向上漂浮的粒子
+                serverLevel.sendParticles(
+                    net.minecraft.core.particles.ParticleTypes.END_ROD,
+                    pos.x, pos.y, pos.z, 1,
+                    0.05, 0.1, 0.05, 0.01
+                );
+                break;
+            case HIGH_GRAVITY:
+                // 高重力：生成向下坠落的粒子
+                serverLevel.sendParticles(
+                    net.minecraft.core.particles.ParticleTypes.SMOKE,
+                    pos.x, pos.y, pos.z, 1,
+                    0.05, -0.1, 0.05, 0.01
                 );
                 break;
         }
