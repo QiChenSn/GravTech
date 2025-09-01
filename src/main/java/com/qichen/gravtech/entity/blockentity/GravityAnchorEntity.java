@@ -16,8 +16,6 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Arrow;
@@ -37,10 +35,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.function.Supplier;
 
-import static com.qichen.gravtech.GravTech.PublicLogger;
 
-
-public class gravityAnchorEntity extends BlockEntity {
+public class GravityAnchorEntity extends BlockEntity {
 
     // 重力模式枚举
     public enum GravityMode {
@@ -53,12 +49,6 @@ public class gravityAnchorEntity extends BlockEntity {
     private static final int EFFECT_DURATION = 2; // 效果持续时间（tick）
     private static final int SOUND_COOLDOWN = 100; // 音效冷却时间
     private static final int PARTICLE_COOLDOWN = 5; // 粒子效果冷却时间
-    
-    // 属性修饰符UUID
-    private static final java.util.UUID SPEED_MODIFIER_UUID = java.util.UUID.fromString("12345678-1234-1234-1234-123456789abc");
-    private static final java.util.UUID JUMP_MODIFIER_UUID = java.util.UUID.fromString("87654321-4321-4321-4321-cba987654321");
-
-
 
     //数据存储
     private GravityMode mode;
@@ -68,11 +58,8 @@ public class gravityAnchorEntity extends BlockEntity {
     // 效果跟踪
     private int soundCooldown = 0;
     private int particleCooldown = 0;
-    
-    // 实体跟踪 - 用于清理离开范围的实体
-    private java.util.Set<java.util.UUID> trackedEntities = new java.util.HashSet<>();
 
-    public gravityAnchorEntity(BlockPos pos, BlockState blockState) {
+    public GravityAnchorEntity(BlockPos pos, BlockState blockState) {
         super(GRAVITY_ANCHOR_ENTITY.get(), pos, blockState);
         this.mode=GravityMode.LOW_GRAVITY;
         this.activated=true;
@@ -83,15 +70,15 @@ public class gravityAnchorEntity extends BlockEntity {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, GravTech.MODID);
 
-    public static final Supplier<BlockEntityType<gravityAnchorEntity>> GRAVITY_ANCHOR_ENTITY = BLOCK_ENTITY_TYPES.register(
+    public static final Supplier<BlockEntityType<GravityAnchorEntity>> GRAVITY_ANCHOR_ENTITY = BLOCK_ENTITY_TYPES.register(
             "gravity_anchor_entity",
             () -> BlockEntityType.Builder.of(
-                    gravityAnchorEntity::new, // 实体构造函数
+                    GravityAnchorEntity::new, // 实体构造函数
                     ModBlockRegister.GRAVITY_ANCHOR_BLOCK.get() // 关联的方块
             ).build(null)
     );
 
-    public static void tick(Level level, BlockPos pos, BlockState state, gravityAnchorEntity be) {
+    public static void tick(Level level, BlockPos pos, BlockState state, GravityAnchorEntity be) {
         if(!be.isActivated()) return;
         
         // 更新冷却时间
@@ -106,15 +93,10 @@ public class gravityAnchorEntity extends BlockEntity {
         // 获取范围内所有实体
         var entities = level.getEntitiesOfClass(Entity.class, area, e -> true);
         boolean hasLivingEntities = false;
-        
-        // 存储当前范围内的实体UUID
-        java.util.Set<java.util.UUID> currentEntityUUIDs = new java.util.HashSet<>();
-        
+
         for(Entity entity : entities) {
             if(entity instanceof LivingEntity livingEntity) {
                 hasLivingEntities = true;
-                currentEntityUUIDs.add(livingEntity.getUUID());
-                be.trackedEntities.add(livingEntity.getUUID());
                 applyGravityEffect(livingEntity, be.getMode(), be);
             } else if(entity instanceof ItemEntity itemEntity) {
                 applyItemGravityEffect(itemEntity, be.getMode(), be);
@@ -123,9 +105,7 @@ public class gravityAnchorEntity extends BlockEntity {
                 applyProjectileGravityEffect(projectile, be.getMode(), be);
             }
         }
-        
-        // 清理离开范围的实体的重力效果
-        cleanupEntitiesOutsideRange(level, be, currentEntityUUIDs);
+
         
         // 播放音效和粒子效果
         if(hasLivingEntities && be.soundCooldown <= 0) {
@@ -140,7 +120,7 @@ public class gravityAnchorEntity extends BlockEntity {
     }
 
     // 应用重力效果
-    private static void applyGravityEffect(LivingEntity entity, GravityMode mode, gravityAnchorEntity anchor) {
+    private static void applyGravityEffect(LivingEntity entity, GravityMode mode, GravityAnchorEntity anchor) {
         switch (mode) {
             case LOW_GRAVITY:
                 applyLowGravityEffect(entity, anchor);
@@ -152,7 +132,7 @@ public class gravityAnchorEntity extends BlockEntity {
     }
 
     // 应用低重力效果
-    private static void applyLowGravityEffect(LivingEntity entity, gravityAnchorEntity anchor) {
+    private static void applyLowGravityEffect(LivingEntity entity, GravityAnchorEntity anchor) {
         // 1. 减少重力影响
         Vec3 motion = entity.getDeltaMovement();
         if(motion.y < 0) { // 只在下降时减少重力
@@ -183,7 +163,7 @@ public class gravityAnchorEntity extends BlockEntity {
     }
 
     // 应用高重力效果
-    private static void applyHighGravityEffect(LivingEntity entity, gravityAnchorEntity anchor) {
+    private static void applyHighGravityEffect(LivingEntity entity, GravityAnchorEntity anchor) {
         // 1. 增加重力影响
         Vec3 motion = entity.getDeltaMovement();
         if(motion.y < 0) { // 只在下降时增加重力
@@ -217,7 +197,7 @@ public class gravityAnchorEntity extends BlockEntity {
     }
 
     // 应用物品重力效果
-    private static void applyItemGravityEffect(ItemEntity itemEntity, GravityMode mode, gravityAnchorEntity anchor) {
+    private static void applyItemGravityEffect(ItemEntity itemEntity, GravityMode mode, GravityAnchorEntity anchor) {
         Vec3 motion = itemEntity.getDeltaMovement();
         Vec3 pos = itemEntity.position();
         Vec3 anchorPos = Vec3.atCenterOf(anchor.getBlockPos());
@@ -255,7 +235,7 @@ public class gravityAnchorEntity extends BlockEntity {
     }
 
     // 应用飞行物重力效果
-    private static void applyProjectileGravityEffect(Projectile projectile, GravityMode mode, gravityAnchorEntity anchor) {
+    private static void applyProjectileGravityEffect(Projectile projectile, GravityMode mode, GravityAnchorEntity anchor) {
         Vec3 motion = projectile.getDeltaMovement();
         Vec3 pos = projectile.position();
         Vec3 anchorPos = Vec3.atCenterOf(anchor.getBlockPos());
@@ -434,52 +414,6 @@ public class gravityAnchorEntity extends BlockEntity {
         }
     }
 
-    // 清理实体上的重力效果
-    public static void clearGravityEffects(LivingEntity entity) {
-        // 移除相关效果
-        entity.removeEffect(MobEffects.GLOWING);
-        entity.removeEffect(MobEffects.SLOW_FALLING);
-        entity.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
-        entity.removeEffect(MobEffects.MOVEMENT_SPEED);
-        entity.removeEffect(MobEffects.JUMP);
-        entity.removeEffect(MobEffects.DIG_SLOWDOWN);
-        entity.removeEffect(MobEffects.WEAKNESS);
-        entity.removeEffect(MobEffects.DAMAGE_BOOST);
-    }
-
-    // 清理离开范围的实体的重力效果
-    private static void cleanupEntitiesOutsideRange(Level level, gravityAnchorEntity anchor, java.util.Set<java.util.UUID> currentEntityUUIDs) {
-        // 创建需要清理的实体UUID集合
-        java.util.Set<java.util.UUID> entitiesToCleanup = new java.util.HashSet<>(anchor.trackedEntities);
-        entitiesToCleanup.removeAll(currentEntityUUIDs);
-        
-        // 清理离开范围的实体
-        for(java.util.UUID entityUUID : entitiesToCleanup) {
-            if(level instanceof ServerLevel serverLevel) {
-                Entity entity = serverLevel.getEntity(entityUUID);
-                if(entity instanceof LivingEntity livingEntity) {
-                    clearGravityEffects(livingEntity);
-                }
-            }
-        }
-        
-        // 更新跟踪的实体集合
-        anchor.trackedEntities.retainAll(currentEntityUUIDs);
-    }
-
-    // 当重力锚被破坏时清理所有跟踪的实体
-    public void cleanupAllTrackedEntities() {
-        if(level instanceof ServerLevel serverLevel) {
-            for(java.util.UUID entityUUID : trackedEntities) {
-                Entity entity = serverLevel.getEntity(entityUUID);
-                if(entity instanceof LivingEntity livingEntity) {
-                    clearGravityEffects(livingEntity);
-                }
-            }
-            trackedEntities.clear();
-        }
-    }
-
     // 获取当前模式
     public GravityMode getMode() {
         return this.mode;
@@ -540,13 +474,6 @@ public class gravityAnchorEntity extends BlockEntity {
         tag.putInt("range", this.range);
         tag.putInt("soundCooldown", this.soundCooldown);
         tag.putInt("particleCooldown", this.particleCooldown);
-        
-        // 保存跟踪的实体UUID列表
-        var trackedEntitiesTag = new net.minecraft.nbt.ListTag();
-        for(java.util.UUID uuid : this.trackedEntities) {
-            trackedEntitiesTag.add(net.minecraft.nbt.NbtUtils.createUUID(uuid));
-        }
-        tag.put("trackedEntities", trackedEntitiesTag);
     }
 
     @Override
@@ -566,15 +493,6 @@ public class gravityAnchorEntity extends BlockEntity {
         }
         if(tag.contains("particleCooldown")){
             this.particleCooldown = tag.getInt("particleCooldown");
-        }
-        
-        // 加载跟踪的实体UUID列表
-        this.trackedEntities.clear();
-        if(tag.contains("trackedEntities")) {
-            var trackedEntitiesTag = tag.getList("trackedEntities", net.minecraft.nbt.Tag.TAG_INT_ARRAY);
-            for(int i = 0; i < trackedEntitiesTag.size(); i++) {
-                this.trackedEntities.add(net.minecraft.nbt.NbtUtils.loadUUID(trackedEntitiesTag.get(i)));
-            }
         }
     }
 
