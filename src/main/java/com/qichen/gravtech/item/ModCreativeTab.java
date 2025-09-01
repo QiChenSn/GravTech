@@ -18,6 +18,7 @@ public class ModCreativeTab {
             .icon(() -> new ItemStack(ModItemRegister.GRAVITY_ANCHOR_ITEM.get()))
             .displayItems((params, output) -> {
                 output.accept(ModItemRegister.GRAVITY_ANCHOR_ITEM.get());
+                output.accept(ModItemRegister.FORCE_FIELD_CONFIGURATOR_ITEM.get());
             })
             .build()
     );

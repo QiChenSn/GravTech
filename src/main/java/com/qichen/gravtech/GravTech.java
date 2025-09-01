@@ -1,6 +1,7 @@
 package com.qichen.gravtech;
 
 import com.qichen.gravtech.block.ModBlockRegister;
+import com.qichen.gravtech.data.ModDataComponent;
 import com.qichen.gravtech.datagen.ModDataGenerator;
 import com.qichen.gravtech.item.ModCreativeTab;
 import com.qichen.gravtech.item.ModItemRegister;
@@ -50,18 +51,10 @@ public class GravTech {
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(ModDataGenerator::onGatherData);
 
-        // Register ourselves for server and other game events we are interested in.
-        // Note that this is necessary if and only if we want *this* class (GravTech) to respond directly to events.
-        // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
         NeoForge.EVENT_BUS.register(this);
-        // Register items first
+        ModDataComponent.register(modEventBus);
         ModItemRegister.register(modEventBus);
         ModBlockRegister.register(modEventBus);
-
-        // Register menu types
-        //ModMenuType.register(modEventBus);
-
-        // Then register creative tab
         ModCreativeTab.register(modEventBus);
     }
 

@@ -17,6 +17,7 @@ public class ModItemModelProvider extends ItemModelProvider {
     @Override
     protected void registerModels() {
         handheldItem(ModItemRegister.GRAVITY_ANCHOR_ITEM);
+        handheldItem(ModItemRegister.FORCE_FIELD_CONFIGURATOR_ITEM);
     }
     private ItemModelBuilder handheldItem(DeferredItem<?> item) {
         return withExistingParent(item.getId().getPath(),
