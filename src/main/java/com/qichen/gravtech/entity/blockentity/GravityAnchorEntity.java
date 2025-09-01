@@ -2,6 +2,7 @@ package com.qichen.gravtech.entity.blockentity;
 
 import com.qichen.gravtech.GravTech;
 import com.qichen.gravtech.block.ModBlockRegister;
+import com.qichen.gravtech.handler.GravityEffectHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
